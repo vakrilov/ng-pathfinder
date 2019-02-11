@@ -10,14 +10,16 @@
   "author": "Alexander Vakrilov",
   "license": "MIT",
   "dependencies": {
+    "@angular/common": "^7.2.4",
     "@angular/compiler": "~7.1.0",
     "@angular/compiler-cli": "~7.1.0",
-    "@angular/core": "~7.1.0",
-    "rxjs": "~6.3.3",
+    "@angular/core": "^7.1.4",
+    "@angular/router": "^7.2.4",
     "chalk": "^2.4.1",
-    "typescript": "~3.1.6",
+    "minimist": "^1.2.0",
     "ngast": "^0.2.4",
-    "minimist": "^1.2.0"
+    "rxjs": "~6.3.3",
+    "typescript": "~3.1.6"
   },
   "devDependencies": {
     "@types/node": "^10.12.18",

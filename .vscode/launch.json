@@ -11,6 +11,22 @@
             "program": "${workspaceFolder}/src/index.js",
             "args": ["-p ../../test-routing-project/tsconfig.json"],
             "preLaunchTask": "build"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch Program (North-Web)",
+            "program": "${workspaceFolder}/src/index.js",
+            "args": ["-p ../../../north-star/src/tsconfig.app.json "],
+            "preLaunchTask": "build"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch Program (North-Tns)",
+            "program": "${workspaceFolder}/src/index.js",
+            "args": ["-p ../../../north-star/src/tsconfig.tns.json "],
+            "preLaunchTask": "build"
         }
     ]
 }
