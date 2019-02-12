@@ -2,24 +2,28 @@ import * as minimist from 'minimist';
 import * as chalk from 'chalk';
 import { existsSync } from 'fs';
 import { ProjectSymbols, ModuleSymbol } from 'ngast';
-import { pathToFileURL } from 'url';
-import { join, resolve } from 'path';
+import { resolve } from 'path';
+import { resourceResolver } from './resource-resolver';
+import { Route } from '@angular/router';
+import { StaticSymbol } from '@angular/compiler';
+import { ProjectHelper } from './project-helper';
 
-import { resourceResolver } from './utils/resource';
-import { ModuleTree } from './utils/module-tree';
+export type ExtendedRoute = Route & {
+  component?: StaticSymbol
+  module?: ModuleSymbol
+  children?: ExtendedRoute[];
+}
 
-import { Routes, Route } from '@angular/router';
+interface TraverseContext {
+  level: number,
+  currentModule: ModuleSymbol,
+  currentRoute: ExtendedRoute
+}
 
 console.log("Starting ...");
 const error = message => {
   console.error(chalk.default.bgRed.white(message));
 };
-const info = (message, count1?, count2?) => {
-  console.log(chalk.default.green(message)
-    + ` ${count1 ? chalk.default.blue(count1) : ''}`
-    + ` ${count2 ? '/ ' + chalk.default.yellowBright(count2) : ''}`
-  );
-}
 
 let projectPath = (minimist(process.argv.slice(2)) as any).p;
 if (!projectPath) {
@@ -33,93 +37,133 @@ if (!existsSync(projectPath)) {
 }
 
 console.log('Parsing...');
-let parseError: any = null;
 const projectSymbols = new ProjectSymbols(
   projectPath,
   resourceResolver,
-  e => (parseError = e)
+  e => { error(e); process.exit(1); }
 );
-const allModules = projectSymbols.getModules();
-if (!parseError) {
-  // console.log("")
-  // console.log(allModules.map(m => m.symbol.name).join("\n"));
 
-  console.log("")
-  console.log("----PATHS----")
-  const mainModule = allModules.find(m => m.getBootstrapComponents().length > 0);
-  traverseRoutes(mainModule, 0);
-}
+console.log("")
+console.log("----PATHS----")
 
+const project = new ProjectHelper(projectSymbols);
+const mainModule = project.getBootstrapModule();
+let root: ExtendedRoute = {
+  module: mainModule,
+  children: project.getRoutesForModule(mainModule)
+};
 
-export function traverseRoutes(module: ModuleSymbol, level: number) {
-  printModule(level, module);
-
-  const routes = getRoutesForModule(module);
-  routes.forEach(r => traverseRoute(r, level));
-}
-
-
-
-
-function getRoutesForModule(module: ModuleSymbol): Routes {
-  const summary = module.getModuleSummary();
-  if (!summary) return;
-
-  const routes = summary.providers.filter(s => {
-    return s.provider.token.identifier && s.provider.token.identifier.reference.name === 'ROUTES';
-  });
-
-  if (!routes) return;
-
-  return routes[0].provider.useValue;
-}
-
-function traverseRoute(r: Route, level: number) {
-  printRoute(r, level);
-
-  //handle children
-  if (r.loadChildren && typeof r.loadChildren === 'string') {
-    const lazyModule: ModuleSymbol = findModule(r.loadChildren);
-    traverseRoutes(lazyModule, level + 1);
-  } else if (r.children) {
-    r.children.forEach(cr => traverseRoute(cr, level + 1))
+function fillLazyChildren(route: ExtendedRoute) {
+  if (route.children) {
+    route.children.forEach((childRoute: ExtendedRoute) => {
+      if (childRoute.loadChildren && typeof childRoute.loadChildren === 'string') {
+        const lazyModule: ModuleSymbol = project.findModule(childRoute.loadChildren);
+        childRoute.module = lazyModule;
+        childRoute.children = project.getRoutesForModule(lazyModule);
+      }
+      fillLazyChildren(childRoute);
+    })
   }
 }
 
+fillLazyChildren(root);
+
+function print(route: ExtendedRoute, level: number = 0) {
+  if (route.module) {
+    console.log(chalk.default.yellow(`${indent(level)}${route.module.symbol.name}(${route.module.symbol.filePath})`));
+  }
+  chalk.default.green()
+  if (typeof route.path !== undefined) {
+    const message =
+      indent(level) +
+      `  path: "${route.path}" ` +
+      chalk.default.green(route.redirectTo ? ` redirectTo: "${route.redirectTo}" ` : "") +
+      chalk.default.blueBright(route.outlet ? ` outlet: ${route.outlet}` : "") +
+      chalk.default.yellow(route.loadChildren ? ` lazy: ${route.loadChildren} ` : "") +
+      chalk.default.magenta(route.component ? ` comp: ${route.component.name}(${route.component.filePath})` : "");
+    console.log(chalk.default(message));
+  }
+
+
+  if (route.children) {
+    route.children.forEach(childRoute => {
+      print(<ExtendedRoute>childRoute, level + 1)
+    });
+  }
+}
+
+
+print(root);
+
+
+
+
+
+//   node.children.forEach(route => {
+//     if (route.loadChildren && typeof route.loadChildren === 'string') {
+//       const lazyModule: ModuleSymbol = project.findModule(route.loadChildren);
+
+//       route.module = lazyModule;
+//       route.children = project.getRoutesForModule(lazyModule)
+//       route.children.for
+
+//       traverseRoutes({ currentModule: lazyModule, level: context.level + 1 });
+//     } else if (route.children) {
+//       route.children.forEach(childRoute => traverseRoute(<ExtendedRoute>childRoute, context))
+//     }
+
+//   }
+// }
+
+// function fillLazyModule()
+
+
+
+
+
+
+
+// traverseRoutes({ currentModule: mainModule, level: 0, currentRoute: root });
+
+// export function traverseRoutes(context: TraverseContext) {
+//   // printModule(context);
+
+//   const routes = project.getRoutesForModule(context.currentModule);
+//   routes.forEach(r => traverseRoute(r, context));
+// }
+
+// function traverseRoute(route: ExtendedRoute, context: TraverseContext) {
+//   printRoute(route, context);
+
+//   //handle children
+//   if (route.loadChildren && typeof route.loadChildren === 'string') {
+//     const lazyModule: ModuleSymbol = project.findModule(route.loadChildren);
+
+//     traverseRoutes({ currentModule: lazyModule, level: context.level + 1 });
+//   } else if (route.children) {
+//     route.children.forEach(childRoute => traverseRoute(<ExtendedRoute>childRoute, context))
+//   }
+// }
+
 function indent(level: number) {
-  return " ".repeat(level * 2);
+  return " ".repeat(level * 4);
 }
 
-function printModule(level: number, module: ModuleSymbol) {
-  const message = indent(level) + `Module: ${module.symbol.name}`;
-  console.log(chalk.default.yellow(message));
-}
+// function printModule({ level, currentModule }: TraverseContext) {
+//   // const message = indent(level) + `Module: ${currentModule.symbol.name}(${currentModule.symbol.filePath})`;
+//   // console.log(chalk.default.yellow(message));
+// }
 
-function printRoute(r: Route, level: number) {
-  const message =
-    indent(level) +
-    `path:"${r.path}" ` +
-    (r.redirectTo ? `redirectTo: "${r.redirectTo}" ` : "") +
-    (r.component ? `comp: ${r.component.name} ` : "") +
-    (r.loadChildren ? `lazy: ${r.loadChildren} ` : "") +
-    (r.children ? "children: " : "");
+// function printRoute(route: ExtendedRoute, context: TraverseContext) {
+//   // const message =
+//   //   indent(context.level) +
+//   //   `path:"${route.path}" ` +
+//   //   (route.redirectTo ? `redirectTo: "${route.redirectTo}" ` : "") +
+//   //   (route.component ? `comp: ${route.component.name}(${route.component.filePath})` : "") +
+//   //   (route.loadChildren ? `lazy: ${route.loadChildren} ` : "") +
+//   //   (route.children ? "children: " : "");
 
-  const color = r.loadChildren ? chalk.default.yellow : chalk.default;
-  console.log(color(message));
-}
-
-function findModule(moduleUri: string) {
-  const moduleUriParts = moduleUri.split('#');
-
-  let result = allModules.find((m) => {
-    return m.symbol.name === moduleUriParts[1];
-  })
-
-  return result;
-}
-
-
-
-
-console.log("----END----")
+//   // const color = route.loadChildren ? chalk.default.yellow : chalk.default;
+//   // console.log(color(message));
+// }
 
