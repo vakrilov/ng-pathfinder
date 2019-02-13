@@ -1,58 +1,69 @@
+#!/usr/bin/env node
+
 import * as minimist from 'minimist';
-import * as chalk from 'chalk';
+import chalk from 'chalk';
 import { existsSync } from 'fs';
 import { ProjectSymbols, ModuleSymbol } from 'ngast';
 import { resolve } from 'path';
 import { resourceResolver } from './resource-resolver';
-import { Route } from '@angular/router';
 import { StaticSymbol } from '@angular/compiler';
 import { ProjectHelper } from './project-helper';
 
-export type ExtendedRoute = Route & {
-    component?: StaticSymbol
+export interface ExtendedRoute {
+    path?: string;
+    pathMatch?: string;
+    //matcher?: UrlMatcher;
+    component?: StaticSymbol; //Type<any>;
+    redirectTo?: string;
+    outlet?: string;
+    canActivate?: any[];
+    canActivateChild?: any[];
+    canDeactivate?: any[];
+    canLoad?: any[];
+    data?: any; //Data;
+    //resolve?: ResolveData;
+    children?: ExtendedRoute[]; //Routes;
+    loadChildren?: string; //LoadChildren;
+    // runGuardsAndResolvers?: RunGuardsAndResolvers;
+
     module?: ModuleSymbol
-    children?: ExtendedRoute[];
 }
 
-interface TraverseContext {
-    level: number,
-    currentModule: ModuleSymbol,
-    currentRoute: ExtendedRoute
-}
-
-console.log("Starting ...");
 const error = message => {
-    console.error(chalk.default.bgRed.white(message));
+    console.error(chalk.bgRed.white(message));
 };
 
 let projectPath = (minimist(process.argv.slice(2)) as any).p;
 if (!projectPath) {
     projectPath = './tsconfig.json';
 }
+projectPath = projectPath.trim();
 
-projectPath = resolve(__dirname, projectPath.trim());
 if (!existsSync(projectPath)) {
     error('Cannot find tsconfig at "' + projectPath + '".');
     process.exit(1);
 }
 
-console.log('Parsing...');
+console.log('Loading project: ' + projectPath);
 const projectSymbols = new ProjectSymbols(
     projectPath,
     resourceResolver,
     e => { error(e); process.exit(1); }
 );
 
-console.log("")
-console.log("----PATHS----")
-
 const project = new ProjectHelper(projectSymbols);
 const mainModule = project.getBootstrapModule();
+if(!mainModule) {
+    error("Could not figure out bootstrap module");
+    process.exit(1); 
+}
+
 let root: ExtendedRoute = {
     module: mainModule,
     children: project.getRoutesForModule(mainModule)
 };
 
+console.log('Reading lazy modules...');
 function fillLazyChildren(route: ExtendedRoute) {
     if (route.children) {
         route.children.forEach((childRoute: ExtendedRoute) => {
@@ -65,35 +76,40 @@ function fillLazyChildren(route: ExtendedRoute) {
         })
     }
 }
-
 fillLazyChildren(root);
+
+function indent(level: number) {
+    return " ".repeat(level * 2);
+}
 
 function print(route: ExtendedRoute, level: number) {
     if (typeof route.path !== "undefined") {
         const message =
             indent(level) +
             `path: "${route.path}"` +
-            chalk.default.green(route.redirectTo ? ` redirectTo: "${route.redirectTo}"` : "") +
-            chalk.default.blueBright(route.outlet ? ` outlet: ${route.outlet}` : "") +
-            chalk.default.yellow(route.loadChildren ? ` lazy: ${route.loadChildren} ` : "") +
-            chalk.default.magenta(route.component ? ` comp: ${route.component.name}(${route.component.filePath})` : "");
-        console.log(chalk.default(message));
+            chalk.green(route.redirectTo ? ` redirectTo: "${route.redirectTo}"` : "") +
+            chalk.blueBright(route.outlet ? ` outlet: ${route.outlet}` : "") +
+            chalk.yellow(route.loadChildren ? ` lazy: ${route.loadChildren} ` : "") +
+            chalk.magenta(route.component ? ` comp: ${route.component.name}(${route.component.filePath})` : "");
+        console.log(message);
     }
 
     if (route.module) {
-        console.log(chalk.default.yellow(`${indent(level + 1)}${route.module.symbol.name}(${route.module.symbol.filePath})`));
+        console.log(chalk.yellow(`${indent(level + 1)}${route.module.symbol.name}(${route.module.symbol.filePath})`));
     }
-
 
     if (route.children) {
-        route.children.forEach(childRoute => {
-            print(<ExtendedRoute>childRoute, level + 1)
-        });
+        route.children.forEach(childRoute => { print(childRoute, level + 1) });
     }
 }
 
-print(root, -1);
-
-function indent(level: number) {
-    return " ".repeat(level * 2);
+function printRoot(root: ExtendedRoute) {
+    console.log("")
+    console.log("----PATHS----")
+    console.log(chalk.yellow(`${root.module.symbol.name}(${root.module.symbol.filePath})`));
+    if (root.children) {
+        root.children.forEach(child => { print(child, 0) });
+    }
 }
+
+printRoot(root);

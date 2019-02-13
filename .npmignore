@@ -1,7 +1,8 @@
 .DS_Store
+.vscode
 node_modules
 package
+tsconfig.json
 
-*.js
-*.js.map
 *.tgz
+*.ts
