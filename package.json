@@ -11,6 +11,19 @@
   },
   "author": "Alexander Vakrilov",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vakrilov/ng-pathfinder.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vakrilov/ng-pathfinder/issues"
+  },
+  "homepage": "https://github.com/vakrilov/ng-pathfinder#readme",
+  "keywords": [
+    "angular",
+    "routing",
+    "ng"
+  ],
   "dependencies": {
     "@angular/compiler": "~7.1.0",
     "@angular/compiler-cli": "~7.1.0",
