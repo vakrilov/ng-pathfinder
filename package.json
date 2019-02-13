@@ -1,6 +1,6 @@
 {
   "name": "ng-pathfinder",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Creates a list of all routes in an angular application. Paths coming from lazy loaded modules are also included.",
   "main": "./src/index.js",
   "bin": "./src/index.js",
