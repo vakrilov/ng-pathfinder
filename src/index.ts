@@ -40,7 +40,7 @@ if (!projectPath) {
 projectPath = projectPath.trim();
 
 if (!existsSync(projectPath)) {
-    error('Cannot find tsconfig at "' + projectPath + '".');
+    error('Cannot find tsconfig at \'' + projectPath + '\'.');
     process.exit(1);
 }
 
@@ -53,9 +53,9 @@ const projectSymbols = new ProjectSymbols(
 
 const project = new ProjectHelper(projectSymbols);
 const mainModule = project.getBootstrapModule();
-if(!mainModule) {
-    error("Could not figure out bootstrap module");
-    process.exit(1); 
+if (!mainModule) {
+    error('Could not figure out bootstrap module');
+    process.exit(1);
 }
 
 let root: ExtendedRoute = {
@@ -79,18 +79,30 @@ function fillLazyChildren(route: ExtendedRoute) {
 fillLazyChildren(root);
 
 function indent(level: number) {
-    return " ".repeat(level * 2);
+    return ' '.repeat(level * 2);
+}
+
+function printComponent(comp: StaticSymbol) {
+    if (!comp) {
+        return '';
+    }
+
+    if (comp.filePath.indexOf('node_modules') === -1) {
+        return chalk.magenta(comp ? ` comp: ${comp.name}(${comp.filePath})` : '')
+    } else {
+        return chalk.magenta(comp ? ` comp: ${comp.name}` : '')
+    }
 }
 
 function print(route: ExtendedRoute, level: number) {
-    if (typeof route.path !== "undefined") {
+    if (typeof route.path !== 'undefined') {
         const message =
             indent(level) +
-            `path: "${route.path}"` +
-            chalk.green(route.redirectTo ? ` redirectTo: "${route.redirectTo}"` : "") +
-            chalk.blueBright(route.outlet ? ` outlet: ${route.outlet}` : "") +
-            chalk.yellow(route.loadChildren ? ` lazy: ${route.loadChildren} ` : "") +
-            chalk.magenta(route.component ? ` comp: ${route.component.name}(${route.component.filePath})` : "");
+            `path: '${route.path}'` +
+            chalk.green(route.redirectTo ? ` redirectTo: '${route.redirectTo}'` : '') +
+            chalk.blueBright(route.outlet ? ` outlet: ${route.outlet}` : '') +
+            chalk.yellow(route.loadChildren ? ` lazy: ${route.loadChildren} ` : '') +
+            printComponent(route.component);
         console.log(message);
     }
 
@@ -104,8 +116,8 @@ function print(route: ExtendedRoute, level: number) {
 }
 
 function printRoot(root: ExtendedRoute) {
-    console.log("")
-    console.log("----PATHS----")
+    console.log('')
+    console.log('----PATHS----')
     console.log(chalk.yellow(`${root.module.symbol.name}(${root.module.symbol.filePath})`));
     if (root.children) {
         root.children.forEach(child => { print(child, 0) });
