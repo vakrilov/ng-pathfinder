@@ -10,14 +10,19 @@ export class ProjectHelper {
 
   getRoutesForModule(module: ModuleSymbol): ExtendedRoute[] {
     const summary = module.getModuleSummary();
-    if (!summary) return;
+    if (!summary) return [];
 
     const routes = summary.providers.filter(s => {
       return s.provider.token.identifier && s.provider.token.identifier.reference.name === 'ROUTES';
     });
 
-    if (!routes) return [];
-
+    if (!routes ||
+      !routes[0] ||
+      !routes[0].provider ||
+      !routes[0].provider.useValue) {
+        return [];
+    }
+    
     return routes[0].provider.useValue;
   }
 
